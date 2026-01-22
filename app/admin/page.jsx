@@ -1,11 +1,16 @@
 'use client'
+import axios from "axios"
 import { dummyAdminDashboardData } from "@/assets/assets"
 import Loading from "@/components/Loading"
 import OrdersAreaChart from "@/components/OrdersAreaChart"
 import { CircleDollarSignIcon, ShoppingBasketIcon, StoreIcon, TagsIcon } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useAuth } from "@clerk/nextjs"
+import toast from "react-hot-toast"
 
 export default function AdminDashboard() {
+
+    const { getToken } = useAuth()
 
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '$'
 
@@ -19,14 +24,25 @@ export default function AdminDashboard() {
     })
 
     const dashboardCardsData = [
-        { title: 'Total Products', value: dashboardData.products, icon: ShoppingBasketIcon },
-        { title: 'Total Revenue', value: currency + dashboardData.revenue, icon: CircleDollarSignIcon },
-        { title: 'Total Orders', value: dashboardData.orders, icon: TagsIcon },
-        { title: 'Total Stores', value: dashboardData.stores, icon: StoreIcon },
+        { title: 'Total Products', value: dashboardData?.products ?? 0, icon: ShoppingBasketIcon },
+        { title: 'Total Revenue', value: currency + (dashboardData?.revenue ?? 0), icon: CircleDollarSignIcon },
+        { title: 'Total Orders', value: dashboardData?.orders ?? 0, icon: TagsIcon },
+        { title: 'Total Stores', value: dashboardData?.stores ?? 0, icon: StoreIcon },
     ]
 
     const fetchDashboardData = async () => {
-        setDashboardData(dummyAdminDashboardData)
+        try {
+            const Token = await getToken()
+            console.log('Fetching dashboard data...')
+            const { data } = await axios.get('/api/admin/dashboard', {
+                headers: { Authorization: `Bearer ${Token}` }
+            })
+            console.log('Dashboard data received:', data)
+            setDashboardData(data.dashboardData || data)
+        } catch (error) {
+            console.error('Dashboard fetch error:', error)
+            toast.error(error?.response?.data?.error || error.message)
+        }
         setLoading(false)
     }
 
@@ -56,7 +72,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Area Chart */}
-            <OrdersAreaChart allOrders={dashboardData.allOrders} />
+            <OrdersAreaChart allOrders={dashboardData?.allOrders ?? []} />
         </div>
     )
 }

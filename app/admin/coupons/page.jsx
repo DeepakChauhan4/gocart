@@ -4,8 +4,12 @@ import { format } from "date-fns"
 import toast from "react-hot-toast"
 import { DeleteIcon } from "lucide-react"
 import { couponDummyData } from "@/assets/assets"
+import { useAuth } from "@clerk/clerk-react"
+import axios from "axios"
 
 export default function AdminCoupons() {
+
+    const { getToken } = useAuth()
 
     const [coupons, setCoupons] = useState([])
 
@@ -20,12 +24,33 @@ export default function AdminCoupons() {
     })
 
     const fetchCoupons = async () => {
-        setCoupons(couponDummyData)
+        try {
+            const token = await getToken()
+            const response = await axios.get('/api/admin/coupon', { headers: { Authorization: `Bearer ${token}` } })
+            setCoupons(response.data.coupons)
+        } catch (error) {
+            toast.error(error.response?.data?.error || "Failed to fetch coupons")
+        }
     }
 
     const handleAddCoupon = async (e) => {
         e.preventDefault()
-        // Logic to add a coupon
+        try {
+            const token = await getToken()
+            const couponData = {
+                ...newCoupon,
+                discount: Number(newCoupon.discount),
+                expiresAt: new Date(newCoupon.expiresAt)
+            }
+            console.log('Sending coupon data:', JSON.stringify(couponData, null, 2))
+            const response = await axios.post('/api/admin/coupon', { coupon: couponData }, { headers: { Authorization: `Bearer ${token}` } })
+            toast.success(response.data.message)
+            await fetchCoupons()
+
+        } catch (error) {
+            console.error('Add coupon error:', error.response?.data || error.message)
+            toast.error(error.response?.data?.error || error.message || "Failed to add coupon")
+        }
 
 
     }
@@ -36,6 +61,19 @@ export default function AdminCoupons() {
 
     const deleteCoupon = async (code) => {
         // Logic to delete a coupon
+        try {
+            const confirm = window.confirm("Are you sure you want to delete this coupon?")
+            if (!confirm)
+                return;
+            const token = await getToken()
+            await axios.delete(`/api/admin/coupon?code=${code}`, { headers: { Authorization: `Bearer ${token}` } })
+            await fetchCoupons()
+            toast.success("Coupon deleted successfully")
+        } catch (error) {
+            toast.error(error.response?.data?.error || error.message)
+
+
+        }
 
 
     }
@@ -91,6 +129,17 @@ export default function AdminCoupons() {
                             <span className="dot absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></span>
                         </label>
                         <p>For Member</p>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                        <label className="relative inline-flex items-center cursor-pointer text-gray-900 gap-3">
+                            <input type="checkbox" className="sr-only peer"
+                                name="isPublic" checked={newCoupon.isPublic}
+                                onChange={(e) => setNewCoupon({ ...newCoupon, isPublic: e.target.checked })}
+                            />
+                            <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-green-600 transition-colors duration-200"></div>
+                            <span className="dot absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></span>
+                        </label>
+                        <p>Is Public</p>
                     </div>
                 </div>
                 <button className="mt-4 p-2 px-10 rounded bg-slate-700 text-white active:scale-95 transition">Add Coupon</button>

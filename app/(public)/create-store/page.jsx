@@ -4,8 +4,15 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import toast from "react-hot-toast"
 import Loading from "@/components/Loading"
+import { useUser, useAuth } from "@clerk/nextjs"
+import { useRouter } from "next/router"
+import axios from "axios"
 
 export default function CreateStore() {
+
+    const { user } = useUser();
+    const router = useRouter();
+    const { getToken } = useAuth()
 
     const [alreadySubmitted, setAlreadySubmitted] = useState(false)
     const [status, setStatus] = useState("")
@@ -28,21 +35,80 @@ export default function CreateStore() {
 
     const fetchSellerStatus = async () => {
         // Logic to check if the store is already submitted
+        const token = await getToken()
+        try {
+            const { data } = await axios.get('/api/store/is-seller', { headers: { Authorization: `Bearer ${token}` } })
+            if (['approved', 'pending', 'rejected'].includes(data.status)) {
+                setAlreadySubmitted(true)
+                setStatus(data.status)
+                switch (data.status) {
+                    case "approved":
+                        setMessage("Your store has been approved! Redirecting to your dashboard...")
+                        setTimeout(() => {
+                            router.push('/store')
+                        }, 5000);
+                        break;
+                    case "rejected":
+                        setMessage("Your store has been rejected!, Contact the admin for more dfetails.")
 
+                        break;
+                    case "pending":
+                        setMessage("Your store has been pending!, Please wait for admin to approve your store")
 
-        setLoading(false)
+                        break;
+
+                    default:
+
+                        break;
+                }
+            } else {
+                setAlreadySubmitted(false)
+            }
+            setLoading(false)
+        } catch (error) {
+            toast.error(error?.response?.data?.error || error.message)
+            setLoading(false)
+        }
     }
 
     const onSubmitHandler = async (e) => {
         e.preventDefault()
-        // Logic to submit the store details
+        if (!user) {
+            return toast('Please Login to continue')
+        }
+        try {
+            const token = await getToken()
+            const formData = new FormData();
+            formData.append("name", storeInfo.name);
+            formData.append("username", storeInfo.username);
+            formData.append("description", storeInfo.description);
+            formData.append("email", storeInfo.email);
+            formData.append("contact", storeInfo.contact);
+            formData.append("address", storeInfo.address);
+            formData.append("image", storeInfo.image);
 
 
+            const { data } = await axios.post('/api/store/create', formData, { headers: { Authorization: `Bearer ${token}` } })
+            toast.success(data.message)
+            await fetchSellerStatus()
+        } catch (error) {
+            toast.error(error?.response?.data?.error || error.message)
+        }
     }
 
     useEffect(() => {
-        fetchSellerStatus()
-    }, [])
+        if (user) {
+            fetchSellerStatus()
+        }
+    }, [user])
+
+    if (!user) {
+        return (
+            <div className='min-h-[80vh] flex flex-col items-center justify-center text-slate-400'>
+                <h1 className='text-2xl sm:text-4xl font-semibold'>Please<span className="text-slate-500">Login</span> to Continue</h1>
+            </div>
+        )
+    }
 
     return !loading ? (
         <>
