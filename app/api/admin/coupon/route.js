@@ -28,15 +28,15 @@ export async function POST(request) {
             expiresAt: coupon.expiresAt
         }
 
-        await prisma.coupon.create({ data: couponData }).then(async (coupon) => {
-            //Run Inngest sheduler Function to delete coupon on expiry
-            await inngest.send({
-                name: 'app/coupon.expired',
-                data: {
-                    code: coupon.code,
-                    expiresAt: coupon.expiresAt
-                }
-            })
+        const createdCoupon = await prisma.coupon.create({ data: couponData })
+
+        //Run Inngest sheduler Function to delete coupon on expiry
+        await inngest.send({
+            name: 'app/coupon.expired',
+            data: {
+                code: createdCoupon.code,
+                expiresAt: createdCoupon.expiresAt
+            }
         })
         return NextResponse.json({ message: "Coupon created successfully" }, { status: 201 })
     } catch (error) {
