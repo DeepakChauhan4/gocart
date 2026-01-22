@@ -5,7 +5,7 @@ import Image from "next/image"
 import toast from "react-hot-toast"
 import Loading from "@/components/Loading"
 import { useUser, useAuth } from "@clerk/nextjs"
-import { useRouter } from "next/router"
+import { useRouter } from "next/navigation"
 import axios from "axios"
 
 export default function CreateStore() {
