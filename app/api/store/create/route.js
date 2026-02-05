@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import imagekit, { upload, getUrl } from "@/configs/imagekit";
 
 
 // create the store
@@ -23,41 +24,30 @@ export async function POST(request) {
         }
 
         //check if the user have already registered a store
-        const store = await prisma.store.findFirst({
+        const existingStore = await prisma.store.findFirst({
             where: {
                 userId: userId
             }
         })
         // if store is already registered then send status of store
-        if (store) {
-            return NextResponse.json({ status: "store.status" })
-            // check if username is already taken
-            const isUsernameTaken = await prisma.store.findFirst({
-                where: {
-                    username: username.toLowerCase()
-                }
-            })
-            if (isUsernameTaken) {
-                return NextResponse.json({ error: "username is already taken" }, { status: 400 })
-            }
+        if (existingStore) {
+            return NextResponse.json({ status: existingStore.status })
         }
+
+        // check if username is already taken
+        const isUsernameTaken = await prisma.store.findFirst({
+            where: {
+                username: username.toLowerCase()
+            }
+        })
+        if (isUsernameTaken) {
+            return NextResponse.json({ error: "username is already taken" }, { status: 400 })
+        }
+
         //image upload to imagekit
         const buffer = Buffer.from(await image.arrayBuffer());
-        const response = await imagekit.upload({
-            file: buffer,
-            fileName: image.name,
-            folder: "logos"
-        });
-        const optimizedImage = imagekit.url({
-            path: response.filePath,
-            transformation: [
-                { quality: "auto" },
-                { height: "200" },
-                { width: "200" }
-
-
-            ]
-        });
+        const response = await upload(buffer, image.name, "logos");
+        const optimizedImage = getUrl(response.filePath, { height: "200", width: "200" });
 
         const newStore = await prisma.store.create({
             data: {
@@ -80,7 +70,7 @@ export async function POST(request) {
                 connect: { id: newStore.id }
             }
         })
-        return NextResponse.json({ messagae: "applied, waiting for approval" })
+        return NextResponse.json({ message: "applied, waiting for approval" })
 
     } catch (error) {
 

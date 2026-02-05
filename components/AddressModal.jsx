@@ -1,9 +1,15 @@
 'use client'
+import { useAuth } from "@clerk/clerk-react"
 import { XIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
+import { useDispatch } from "react-redux"
 
 const AddressModal = ({ setShowAddressModal }) => {
+
+    const { getToken } = useAuth()
+
+    const dispatch = useDispatch()
 
     const [address, setAddress] = useState({
         name: '',
@@ -25,8 +31,23 @@ const AddressModal = ({ setShowAddressModal }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        try {
+            const token = await getToken()
+            const { data } = await fetch('/api/address', { address }, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+            })
+            dispatch(addAddress(data.newAddress))
+            toast.success(data.message)
+            setShowAddressModal(false)
 
-        setShowAddressModal(false)
+        } catch (error) {
+            console.log(error)
+            toast.error(error?.response?.data?.error || 'Something went wrong')
+        }
+
+
     }
 
     return (
