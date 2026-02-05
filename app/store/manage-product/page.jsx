@@ -6,6 +6,7 @@ import Loading from "@/components/Loading"
 import { productDummyData } from "@/assets/assets"
 import { useAuth, useUser } from "@clerk/nextjs"
 import { set } from "date-fns"
+import axios from "axios"
 
 export default function StoreManageProducts() {
 
@@ -21,16 +22,18 @@ export default function StoreManageProducts() {
     const fetchProducts = async () => {
         try {
             const token = await getToken()
-            const { data } = await axios.get('/api/store/products', {
+            const { data } = await axios.get('/api/store/product', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             })
             setProducts(data.products.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)))
         } catch (error) {
+            console.error("Fetch products error:", error);
             toast.error(error?.response?.data?.message || error.message || "Something went wrong")
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     const toggleStock = async (productId) => {

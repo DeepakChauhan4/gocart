@@ -10,22 +10,25 @@ export async function GET(request) {
     try {
         const { userId } = getAuth(request);
         const storeId = await authSeller(userId);
+
         //get all orders
-        const orders = prisma.order.findMany({
+        const orders = await prisma.order.findMany({
             where: {
                 storeId: storeId
             }
         });
+
         // get all product with the ratings for seller
-        const products = prisma.product.findMany({
+        const products = await prisma.product.findMany({
             where: {
                 storeId: storeId
             },
         });
+
         const ratings = await prisma.rating.findMany({
             where: {
                 productId: {
-                    in: product.map((product) => product.id)
+                    in: products.map((product) => product.id)
                 }
             },
             include: {
@@ -33,10 +36,11 @@ export async function GET(request) {
                 product: true
             }
         });
+
         const dashboardData = {
             ratings,
             totalOrders: orders.length,
-            totalearnings: Math.round(orders.reduce((acc, order) => acc + order.total, 0)),
+            totalEarnings: Math.round(orders.reduce((acc, order) => acc + order.total, 0)),
             totalProducts: products.length
         }
         return NextResponse.json({ dashboardData });

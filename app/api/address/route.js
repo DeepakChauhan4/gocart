@@ -18,12 +18,18 @@ export async function POST(request) {
 
 
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        console.error("Address API error:", {
+            message: error.message,
+            code: error.code,
+            meta: error.meta,
+            response: error.response?.data
+        });
+        return NextResponse.json({ error: error.message || "Something went wrong" }, { status: 400 })
 
     }
 }
 
-//get alladdress for user 
+//get alladdress for user
 
 export async function GET(request) {
     try {

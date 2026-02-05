@@ -21,7 +21,7 @@ export async function POST(request) {
         if (couponCode) {
             coupon = await prisma.coupon.findUnique({
                 where: {
-                    code: code.couponCode
+                    code: couponCode
                 }
             })
             if (!coupon) {
@@ -73,22 +73,25 @@ export async function POST(request) {
             let total = sellerItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
             if (couponCode) {
-                total -= (total * coupon.disccount) / 100;
+                total -= (total * coupon.discount) / 100;
             }
             if (!isPlusMember && !isShippingFeeAdded) {
                 total += 50; // flat shipping fee
                 isShippingFeeAdded = true;
             }
             fullAmount += parseFloat(total.toFixed(2))
+
+            console.log("Creating order for store:", storeId, "with total:", total.toFixed(2))
+
             const order = await prisma.order.create({
                 data: {
                     userId,
                     storeId,
                     addressId,
-                    total: parseFloat(total.fixed(2)),
-                    PaymentMethod,
+                    total: parseFloat(total.toFixed(2)),
+                    paymentMethod,
                     isCouponUsed: coupon ? true : false,
-                    couponCode: coupon ? coupon.code : null,
+                    coupon: coupon ? { code: coupon.code, discount: coupon.discount } : {},
                     orderItems: {
                         create: sellerItems.map(item => ({
                             productId: item.id,
@@ -98,9 +101,10 @@ export async function POST(request) {
                     }
                 }
             })
+            console.log("Order created:", order.id)
             orderIds.push(order.id)
         }
-        if (paymentMethod === 'Stripe') {
+        if (paymentMethod === 'STRIPE') {
             const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
             const origin = await request.headers.get('origin')
             const session = await stripe.checkout.sessions.create({
@@ -138,8 +142,12 @@ export async function POST(request) {
         return NextResponse.json({ message: "Order placed successfully", orderIds, fullAmount }, { status: 200 })
 
     } catch (error) {
-        console.log(error);
-        return NextResponse.json({ error: error.code || error.message })
+        console.error("=== ORDER ERROR ===");
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error code:", error.code);
+        console.error("Full error:", error);
+        return NextResponse.json({ error: error.code || error.message || "Unknown error occurred" }, { status: 500 })
 
     }
 }
@@ -161,11 +169,15 @@ export async function GET(request) {
                 ]
 
             }, include: {
-                orderItems: true,
+                orderItems: {
+                    include: {
+                        product: true
+                    }
+                },
                 address: true,
 
             },
-            ordeerBy: {
+            orderBy: {
                 createdAt: 'desc'
             }
         })

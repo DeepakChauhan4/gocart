@@ -9,10 +9,18 @@ export async function POST(request) {
     try {
         const { userId } = getAuth(request);
         console.log('POST /api/store/product - userId:', userId);
+
+        if (!userId) {
+            console.log('POST /api/store/product - No userId, returning 401');
+            return NextResponse.json({ error: "Unauthorized - No user ID" }, { status: 401 });
+        }
+
         const storeId = await authSeller(userId);
-        console.log('POST /api/store/product - storeId:', storeId);
+        console.log('POST /api/store/product - storeId from authSeller:', storeId);
+
         if (!storeId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            console.log('POST /api/store/product - authSeller returned false');
+            return NextResponse.json({ error: "Unauthorized - Store not approved" }, { status: 401 });
         }
 
         // get the data from the form
@@ -52,7 +60,7 @@ export async function POST(request) {
                 mrp: mrp,
                 price: price,
                 category: category,
-                stock: 0, // default stock
+                inStock: true, // default stock - using inStock as per Prisma schema
                 images: imagesUrl,
             }
         });
@@ -63,7 +71,12 @@ export async function POST(request) {
         })
 
     } catch (error) {
-        console.error("Error creating product:", error);
+        console.error("Error creating product:", {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data,
+            stack: error.stack
+        });
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
