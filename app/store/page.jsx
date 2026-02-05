@@ -7,6 +7,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
+import axios from "axios"
 
 export default function Dashboard() {
 
@@ -42,10 +43,11 @@ export default function Dashboard() {
             })
             setDashboardData(data.dashboardData)
         } catch (error) {
+            console.error("Dashboard fetch error:", error);
             toast.error(error?.response?.data?.message || error.message)
-
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     useEffect(() => {

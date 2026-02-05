@@ -8,14 +8,23 @@ const authSeller = async (userId) => {
             return false;
         }
 
+        console.log('authSeller: Checking authorization for userId:', userId);
+
         let user = await prisma.user.findUnique({
             where: { id: userId },
             include: { store: true }
         });
 
+        console.log('authSeller: User found in database:', user ? {
+            id: user.id,
+            hasStore: !!user.store,
+            storeStatus: user.store?.status,
+            storeIsActive: user.store?.isActive
+        } : 'no');
+
         // Auto-create user if doesn't exist (for Clerk users)
         if (!user) {
-            console.log('authSeller: User not found, creating...');
+            console.log('authSeller: User not found in DB, checking Clerk...');
             try {
                 // Get user info from Clerk
                 const client = await clerkClient();
@@ -33,33 +42,32 @@ const authSeller = async (userId) => {
                 console.log('authSeller: User created successfully');
             } catch (createError) {
                 console.error('authSeller: Failed to create user:', createError);
-                return false;
-            }
-        }
-
-        console.log('authSeller: user found:', user ? 'yes' : 'no');
-        if (user) {
-            console.log('authSeller: user has store:', user.store ? 'yes' : 'no');
-            if (user.store) {
-                console.log('authSeller: store status:', user.store.status);
+                throw new Error("Failed to sync user from Clerk: " + createError.message);
             }
         }
 
         if (user && user.store) {
-            if (user.store.status === 'approved') {
-                console.log('authSeller: store approved, returning storeId:', user.store.id);
+            console.log('authSeller: Store details:', {
+                storeId: user.store.id,
+                storeName: user.store.name,
+                status: user.store.status,
+                isActive: user.store.isActive
+            });
+
+            if (user.store.status === 'approved' && user.store.isActive === true) {
+                console.log('authSeller: Store APPROVED, returning storeId:', user.store.id);
                 return user.store.id;
             } else {
-                console.log('authSeller: store not approved');
+                console.log('authSeller: Store not approved yet. Status:', user.store.status, 'isActive:', user.store.isActive);
                 return false;
             }
         }
-        console.log('authSeller: authorization failed - no approved store');
+
+        console.log('authSeller: No store found for this user');
         return false;
     } catch (error) {
         console.error('authSeller error:', error);
-        return false;
-
+        throw error; // Re-throw to propagate to API route
     }
 }
 

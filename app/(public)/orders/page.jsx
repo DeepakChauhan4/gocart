@@ -6,6 +6,7 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import Loading from "@/components/Loading";
+import axios from "axios";
 
 export default function Orders() {
 
@@ -23,17 +24,18 @@ export default function Orders() {
         const fetchOrders = async () => {
             try {
                 const token = await getToken();
-                const { data } = await axios.get('/api/order', {
+                const { data } = await axios.get('/api/orders', {
                     headers: {
                         Authorization: `Bearer ${token}`
 
                     }
                 })
                 setOrders(data.orders)
-                setLoading(false)
             } catch (error) {
+                console.error("Fetch orders error:", error);
                 toast.error(error.response?.data?.error || 'Failed to fetch orders')
-
+            } finally {
+                setLoading(false)
             }
         }
         if (isLoaded) {

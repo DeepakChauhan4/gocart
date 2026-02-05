@@ -7,7 +7,8 @@ import SellerNavbar from "./StoreNavbar"
 import SellerSidebar from "./StoreSidebar"
 import { dummyStoreData } from "@/assets/assets"
 import { useAuth } from "@clerk/nextjs"
-import { set } from "date-fns"
+import axios from "axios"
+import toast from "react-hot-toast"
 
 const StoreLayout = ({ children }) => {
 
@@ -20,17 +21,28 @@ const StoreLayout = ({ children }) => {
 
     const fetchIsSeller = async () => {
         try {
+            console.log("StoreLayout: Fetching is-seller status...");
             const token = await getToken()
+            console.log("StoreLayout: Got token:", token ? "yes" : "no");
+
+            if (!token) {
+                console.log("StoreLayout: No token available");
+                setLoading(false);
+                return;
+            }
+
             const { data } = await axios.get('/api/store/is-seller', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             })
 
+            console.log("StoreLayout: API response:", data);
             setIsSeller(data.isSeller)
             setStoreInfo(data.storeInfo)
         } catch (error) {
-            console.log(error)
+            console.error("StoreLayout: Error fetching is-seller:", error);
+            toast.error("Store error: " + (error.response?.data?.error || error.message || "Unknown error"))
         } finally {
             setLoading(false)
         }
@@ -52,11 +64,22 @@ const StoreLayout = ({ children }) => {
                 </div>
             </div>
         </div>
-    ) : (
+    ) : storeInfo ? (
+        // Store exists but not approved
         <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-            <h1 className="text-2xl sm:text-4xl font-semibold text-slate-400">You are not authorized to access this page</h1>
+            <h1 className="text-2xl sm:text-4xl font-semibold text-slate-400">Your store is pending approval</h1>
+            <p className="text-slate-500 mt-4">Please wait for admin approval to access your store dashboard.</p>
             <Link href="/" className="bg-slate-700 text-white flex items-center gap-2 mt-8 p-2 px-6 max-sm:text-sm rounded-full">
                 Go to home <ArrowRightIcon size={18} />
+            </Link>
+        </div>
+    ) : (
+        // No store exists - show create store option
+        <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
+            <h1 className="text-2xl sm:text-4xl font-semibold text-slate-400">You don't have a store yet</h1>
+            <p className="text-slate-500 mt-4">Create a store to start selling your products.</p>
+            <Link href="/create-store" className="bg-green-600 text-white flex items-center gap-2 mt-8 p-2 px-6 max-sm:text-sm rounded-full hover:bg-green-700 transition">
+                Create Store <ArrowRightIcon size={18} />
             </Link>
         </div>
     )

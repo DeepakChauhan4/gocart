@@ -58,7 +58,7 @@ export async function POST(request) {
                 email: email,
                 contact: contact,
                 address: address,
-                image: optimizedImage
+                logo: optimizedImage
             }
         });
 
@@ -73,8 +73,15 @@ export async function POST(request) {
         return NextResponse.json({ message: "applied, waiting for approval" })
 
     } catch (error) {
+        console.error("store creation error", error);
 
-        console.log("store creation error", error);
+        // Check if it's an authentication error
+        if (error.message?.includes('unauthorized') || error.message?.includes('Unauthorized') ||
+            error.message?.includes('not authenticated') || error.message?.includes('userId') === false ||
+            error.code === 'UNAUTHORIZED' || error.status === 401) {
+            return NextResponse.json({ error: "Please login to create a store" }, { status: 401 });
+        }
+
         return NextResponse.json({ error: error.code || error.message }, { status: 400 })
     }
 
